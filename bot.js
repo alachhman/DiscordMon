@@ -10,12 +10,16 @@ for (const file of commandFiles) {
     client.commands.set(command.name, command);
 }
 
+client.once('ready', async () => {
+    console.log(`Bot is running on ${client.guilds.cache.size} servers`);
+    await client.user.setActivity('ligma');
+});
+
 client.on('message', async (message) => {
-    if (message.content === 'thanks bud' && message.author.id === antnee) {
+    if (message.content.includes('thanks bud')) {
         message.reply("no problem fam");
         return;
     }
-    if (message.author.bot) return;
     if (!message.content.startsWith(prefix) || message.author.bot) return;
     const args = message.content.slice(prefix.length).split(/ +/);
     const command = args.shift().toLowerCase();
