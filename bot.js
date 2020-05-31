@@ -89,17 +89,35 @@ spawnPokemon = async (message) => {
     let data;
     await P.getPokemonByName(pkmn, function (response, error) { // with callback
         if (!error) {
-            console.dir(response, {depth: 10});
+            //console.dir(response, {depth: 10});
             data = response;
         } else {
             console.log(error);
         }
     });
-
+    console.log(data.forms[0].name);
     const embed = new Discord.MessageEmbed()
         .setTitle('A wild ' + data.forms[0].name + ' has appeared!')
         .setColor("#3a50ff")
         .setImage(data.sprites.front_default);
     await message.channel.send({embed});
+
+    const filter = m => m.content.toUpperCase() === data.forms[0].name.toUpperCase();
+    // const collector = new Discord.MessageCollector(message.channel, filter, { time: 15000 });
+    // collector.collect(message => {message.channel.send("message collected: `" + message.content + "`")});
+    // collector.end(collected => message.channel.send(collected.first().author.username + " has caught the pokemon."));
+
+
+    const collector = message.channel.createMessageCollector(filter, { time: 15000 });
+
+    collector.on('collect', m => {
+        console.log(`Collected ${m.content}`);
+        collector.stop();
+    });
+
+    collector.on('end', collected => {
+        console.log(`Collected ${collected.size} items`);
+        message.channel.send(collected.first().author.username + " has caught the pokemon!");
+    });
 };
 
