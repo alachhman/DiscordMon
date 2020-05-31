@@ -31,7 +31,7 @@ let db = admin.firestore();
 
 client.once('ready', async () => {
     console.log(`Bot is running on ${client.guilds.cache.size} servers`);
-    await client.user.setActivity('ligma');
+    await client.user.setActivity('sugma');
 });
 
 client.on('message', async (message) => {
