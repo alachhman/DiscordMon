@@ -1,9 +1,10 @@
-module.exports.run = async (message, args, client, db) => {
+const Discord = require('discord.js');
 
-   message.channel.send("```jason test```")
-
-}
-
-module.exports.help = {
-    name:"test"
-}
+module.exports = {
+    name: 'test',
+    display: 'test',
+    description: 'test`',
+    async execute(message, args, client) {
+        message.channel.send("```jason test```")
+    }
+};

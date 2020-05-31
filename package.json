@@ -14,6 +14,7 @@
     "dotenv": "^8.2.0",
     "firebase": "^7.14.6",
     "firebase-admin": "^8.12.1",
-    "fs": "0.0.1-security"
+    "fs": "0.0.1-security",
+    "pokedex-promise-v2": "^3.2.0"
   }
 }
