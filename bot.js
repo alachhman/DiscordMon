@@ -73,7 +73,8 @@ client.on('guildCreate', async gData => {
         'guildOwner': gData.owner.user.username,
         'guildOwner': gData.owner.id,
         'guildMemberCount': gData.memberCount,
-        'prefix': '>'
+        'prefix': '>',
+        'pokeSpawn': 'false'
     });
 });
 
