@@ -48,7 +48,7 @@ client.on('message', async (message) => {
                 return;
             }
 
-            if (Math.random() < 0.1) {
+            if (Math.random() < 0.1 && !await db.collection('guilds').doc(message.guild.id).get().then(x => x._fieldsProto.hasSpawn.booleanValue)) {
                 await spawnPokemon(message);
             }
 
@@ -73,8 +73,8 @@ client.on('guildCreate', async gData => {
         'guildOwner': gData.owner.user.username,
         'guildOwner': gData.owner.id,
         'guildMemberCount': gData.memberCount,
-        'prefix': '>',
-        'pokeSpawn': 'false'
+        'hasSpawn': false,
+        'prefix': '>'
     });
 });
 
@@ -103,38 +103,69 @@ spawnPokemon = async (message) => {
         .setImage(data.sprites.front_default);
     await message.channel.send({embed});
 
+    db.collection('guilds').doc(message.guild.id).set({
+        'guildID': message.guild.id,
+        'guildName': message.guild.name,
+        'guildOwner': message.guild.owner.user.username,
+        'guildOwner': message.guild.owner.id,
+        'guildMemberCount': message.guild.memberCount,
+        'hasSpawn': true,
+        'prefix': '>'
+    });
+
     const filter = m => m.content.toUpperCase() === data.forms[0].name.toUpperCase();
-    // const collector = new Discord.MessageCollector(message.channel, filter, { time: 15000 });
-    // collector.collect(message => {message.channel.send("message collected: `" + message.content + "`")});
-    // collector.end(collected => message.channel.send(collected.first().author.username + " has caught the pokemon."));
-
-
-    const collector = message.channel.createMessageCollector(filter, { time: 15000 });
+    const collector = message.channel.createMessageCollector(filter, {time: 15000});
 
     collector.on('collect', m => {
         console.log(`Collected ${m.content}`);
         collector.stop();
     });
 
-    collector.on('end',async collected => {
-        console.log(`Collected ${collected.size} items`);
-
-
-        let size = 0;
-
-        db.collection('users')
-            .doc(collected.first().author.id)
-            .collection('pokemon')
-            .get().then(async snap => {
-                size = snap.size + 1
-            const sizeS = size.toString();
-            await db.collection('users').doc(collected.first().author.id).collection('pokemon').doc(sizeS).set({
-                'pokeID': size,
-                'pokeName': data.forms[0].name.toUpperCase(),
-                'pokeNickname': data.forms[0].name.toUpperCase()
+    collector.on('end', async collected => {
+        if(collected.size > 0){
+            let size = 0;
+            db.collection('users')
+                .doc(collected.first().author.id)
+                .collection('pokemon')
+                .get().then(async snap => {
+                size = snap.size + 1;
+                const sizeS = size.toString();
+                await db.collection('users').doc(collected.first().author.id).collection('pokemon').doc(sizeS).set({
+                    'pokeID': size,
+                    'pokeName': data.forms[0].name,
+                    'pokeNickname': data.forms[0].name,
+                    'pokeApiEntry': data.forms[0].url
+                });
+                message.channel.send(collected.first().author.username + " has caught the pokemon!");
             });
-            message.channel.send(collected.first().author.username + " has caught the pokemon!");
+        }
+        db.collection('guilds').doc(message.guild.id).set({
+            'guildID': message.guild.id,
+            'guildName': message.guild.name,
+            'guildOwner': message.guild.owner.user.username,
+            'guildOwner': message.guild.owner.id,
+            'guildMemberCount': message.guild.memberCount,
+            'hasSpawn': false,
+            'prefix': '>'
         });
-        })
+        message.channel.send("*DEBUG:* message collector end");
+    })
 };
 
+
+/**
+ * work in progress function **IGNORE**
+ * @returns {Promise<void>}
+ */
+updateGuild = async () => {
+    let options = {
+        'guildID': message.guild.id,
+        'guildName': message.guild.name,
+        'guildOwner': message.guild.owner.user.username,
+        'guildOwner': message.guild.owner.id,
+        'guildMemberCount': message.guild.memberCount,
+        'hasSpawn': false,
+        'prefix': '>'
+    };
+    db.collection('guilds').doc(message.guild.id).set(options);
+};
