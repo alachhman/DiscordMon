@@ -116,9 +116,25 @@ spawnPokemon = async (message) => {
         collector.stop();
     });
 
-    collector.on('end', collected => {
+    collector.on('end',async collected => {
         console.log(`Collected ${collected.size} items`);
-        message.channel.send(collected.first().author.username + " has caught the pokemon!");
-    });
+
+
+        let size = 0;
+
+        db.collection('users')
+            .doc(collected.first().author.id)
+            .collection('pokemon')
+            .get().then(async snap => {
+                size = snap.size + 1
+            const sizeS = size.toString();
+            await db.collection('users').doc(collected.first().author.id).collection('pokemon').doc(sizeS).set({
+                'pokeID': size,
+                'pokeName': data.forms[0].name.toUpperCase(),
+                'pokeNickname': data.forms[0].name.toUpperCase()
+            });
+            message.channel.send(collected.first().author.username + " has caught the pokemon!");
+        });
+        })
 };
 

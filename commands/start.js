@@ -20,17 +20,3 @@ module.exports = {
         )
     }
 };
-/*var doc = firestore.collection('some_collection').doc('some_doc');
-  doc.get().then((docData) => {
-    if (docData.exists) {
-      // document exists (online/offline)
-    } else {
-      // document does not exist (only on online)
-    }
-  }).catch((fail) => {
-    // Either
-    // 1. failed to read due to some reason such as permission denied ( online )
-    // 2. failed because document does not exists on local storage ( offline )
-  });
-
- */
