@@ -5,7 +5,13 @@ module.exports = {
     display: 'list',
     description: 'shows list of all pokemon',
     async execute(message, args, client, db) {
-        // db.collection('users').doc(message.author.id).collection('pokemon')
-        //     .orderBy("pokeName")
+        const snapshot = db.collection('users').doc(message.author.id).collection('pokemon').get().then((querySnapshot) => {
+            const tempDoc = querySnapshot.docs.map((doc) => {
+                return { id: doc.id, ...doc.data() }
+            })
+            let pokeArray = tempDoc.map(x=>x.pokeName);
+            let pokeString = pokeArray.join("\n");
+            message.channel.send("```"+pokeString+"```")
+        })
     }
 };
