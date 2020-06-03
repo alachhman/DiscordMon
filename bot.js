@@ -67,17 +67,8 @@ client.on('message', async (message) => {
 });
 
 client.on('guildCreate', async gData => {
-    await db.collection('guilds').doc(gData.id).set({
-        'guildID': gData.id,
-        'guildName': gData.name,
-        'guildOwner': gData.owner.user.username,
-        'guildOwner': gData.owner.id,
-        'guildMemberCount': gData.memberCount,
-        'hasSpawn': false,
-        'prefix': '>'
-    });
+    await updateGuild(message, "guildID", gData.id);
 });
-
 
 client.login(environment === "production" ? prodToken : stagingToken);
 
@@ -103,15 +94,7 @@ spawnPokemon = async (message) => {
         .setImage(data.sprites.front_default);
     await message.channel.send({embed});
 
-    db.collection('guilds').doc(message.guild.id).set({
-        'guildID': message.guild.id,
-        'guildName': message.guild.name,
-        'guildOwner': message.guild.owner.user.username,
-        'guildOwner': message.guild.owner.id,
-        'guildMemberCount': message.guild.memberCount,
-        'hasSpawn': true,
-        'prefix': '>'
-    });
+    await updateGuild(message, "hasSpawn", true);
 
     const filter = m => m.content.toUpperCase() === data.forms[0].name.toUpperCase();
     const collector = message.channel.createMessageCollector(filter, {time: 15000});
@@ -139,15 +122,7 @@ spawnPokemon = async (message) => {
                 message.channel.send(collected.first().author.username + " has caught the pokemon!");
             });
         }
-        db.collection('guilds').doc(message.guild.id).set({
-            'guildID': message.guild.id,
-            'guildName': message.guild.name,
-            'guildOwner': message.guild.owner.user.username,
-            'guildOwner': message.guild.owner.id,
-            'guildMemberCount': message.guild.memberCount,
-            'hasSpawn': false,
-            'prefix': '>'
-        });
+        await updateGuild(message, "hasSpawn", false);
         message.channel.send("*DEBUG:* message collector end");
     })
 };
@@ -157,15 +132,21 @@ spawnPokemon = async (message) => {
  * work in progress function **IGNORE**
  * @returns {Promise<void>}
  */
-updateGuild = async () => {
+updateGuild = async (message, keyToChange, newValue) => {
     let options = {
         'guildID': message.guild.id,
         'guildName': message.guild.name,
-        'guildOwner': message.guild.owner.user.username,
+        'guildOwnerUserName': message.guild.owner.user.username,
         'guildOwner': message.guild.owner.id,
         'guildMemberCount': message.guild.memberCount,
         'hasSpawn': false,
         'prefix': '>'
     };
+    for(let key in options){
+        if(!options.hasOwnProperty(key)) return;
+        if(key === keyToChange){
+            options[key] = newValue;
+        }
+    }
     db.collection('guilds').doc(message.guild.id).set(options);
 };
