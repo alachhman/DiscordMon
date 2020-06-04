@@ -5,6 +5,7 @@ const client = new Discord.Client();
 const dotenv = require('dotenv/config');
 const Pokedex = require('pokedex-promise-v2');
 const P = new Pokedex();
+const {getEmoji} = require("./Helpers/Helpers");
 
 client.commands = new Discord.Collection();
 const commandFiles = fs.readdirSync('./commands').filter(file => file.endsWith('.js'));
@@ -67,13 +68,13 @@ client.on('message', async (message) => {
 });
 
 client.on('guildCreate', async gData => {
-    await updateGuild(message, "guildID", gData.id);
+    await updateGuild(gData, "guildID", gData.id);
 });
 
 client.login(environment === "production" ? prodToken : stagingToken);
 
 spawnPokemon = async (message) => {
-    await updateGuild(message, "hasSpawn", true);
+    await updateGuild(message.guild, "hasSpawn", true);
 
     let pkmn = Math.round(Math.random() * 1000) - 36;
     if (pkmn < 1) {
@@ -91,12 +92,13 @@ spawnPokemon = async (message) => {
     try {
         console.log(data.forms[0].name);
         const embed = new Discord.MessageEmbed()
-            .setTitle('A wild ' + data.forms[0].name + ' has appeared!')
+            .addField("Encounter!",'A wild ' + await getEmoji(data.forms[0].name, client) + ' has appeared!')
             .setColor("#3a50ff")
             .setImage(data.sprites.front_default);
         await message.channel.send({embed});
     } catch (e) {
-        await updateGuild(message, "hasSpawn", false);
+        await updateGuild(message.guild, "hasSpawn", false);
+        console.error(e);
         return;
     }
 
@@ -135,7 +137,7 @@ spawnPokemon = async (message) => {
                 .setImage(data.sprites.front_default);
             await message.channel.send({embed});
         }
-        await updateGuild(message, "hasSpawn", false);
+        await updateGuild(message.guild, "hasSpawn", false);
         message.channel.send("*DEBUG:* message collector end");
     });
 };
@@ -144,13 +146,13 @@ spawnPokemon = async (message) => {
 /**
  * @returns {Promise<void>}
  */
-updateGuild = async (message, keyToChange, newValue) => {
+updateGuild = async (guild, keyToChange, newValue) => {
     let options = {
-        'guildID': message.guild.id,
-        'guildName': message.guild.name,
-        'guildOwnerUserName': message.guild.owner.user.username,
-        'guildOwner': message.guild.owner.id,
-        'guildMemberCount': message.guild.memberCount,
+        'guildID': guild.id,
+        'guildName': guild.name,
+        'guildOwnerUserName': guild.owner.user.username,
+        'guildOwner': guild.owner.id,
+        'guildMemberCount': guild.memberCount,
         'hasSpawn': false,
         'prefix': '>'
     };
@@ -160,7 +162,7 @@ updateGuild = async (message, keyToChange, newValue) => {
             options[key] = newValue;
         }
     }
-    db.collection('guilds').doc(message.guild.id).set(options);
+    db.collection('guilds').doc(guild.id).set(options);
 };
 
 

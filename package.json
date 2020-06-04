@@ -15,6 +15,8 @@
     "firebase": "^7.14.6",
     "firebase-admin": "^8.12.1",
     "fs": "0.0.1-security",
-    "pokedex-promise-v2": "^3.2.0"
+    "image-js": "^0.21.9",
+    "pokedex-promise-v2": "^3.2.0",
+    "pokesprite-images": "^2.0.6"
   }
 }
