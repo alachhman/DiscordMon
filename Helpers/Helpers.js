@@ -44,7 +44,7 @@ module.exports = {
             curPage.edit(pages[page].setFooter(`Page ${page + 1} / ${pages.length}`));
         });
         reactionCollector.on('end', function () {
-                curPage.clearReactions();
+                curPage.reactions.removeAll();
                 curPage.edit(pages[page].setFooter("Re-search to see the other pages again."));
             }
         );
