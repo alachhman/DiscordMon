@@ -1,10 +1,80 @@
 module.exports = {
-    getEmoji: function (string, client) {
+    getEmoji: (string, client) => {
         return "<:" + string + ":" + emojiMapping[string] + ">";
+    },
+    generateSpaces: (string, maxChar) => {
+        let out = "" + string;
+        if (string.length < maxChar) {
+            for(let x = 0; x < (maxChar - string.length); x++){
+                out += " ";
+            }
+        }
+        return out;
+    },
+    generateIVSummary: (ivs) => {
+        let sum = 0;
+        for(let iv in ivs){
+            sum += ivs[iv];
+        }
+        return (Math.floor(sum / 186 * 100)) + "%";
+    },
+    paginationEmbed: async function (msg, pages, emojiList = ['⏪', '⏩'], timeout = 120000) {
+        if (!msg && !msg.channel) throw new Error('Channel is inaccessible.');
+        if (!pages) throw new Error('Pages are not given.');
+        if (emojiList.length !== 2) throw new Error('Need two emojis.');
+        let page = 0;
+        const curPage = await msg.channel.send(pages[page].setFooter(`Page ${page + 1} / ${pages.length}`));
+        for (const emoji of emojiList) await curPage.react(emoji);
+        const reactionCollector = curPage.createReactionCollector(
+            (reaction, user) => emojiList.includes(reaction.emoji.name) && !user.bot,
+            {time: timeout}
+        );
+        reactionCollector.on('collect', reaction => {
+            reaction.users.remove(msg.author);
+            switch (reaction.emoji.name) {
+                case emojiList[0]:
+                    page = page > 0 ? --page : pages.length - 1;
+                    break;
+                case emojiList[1]:
+                    page = page + 1 < pages.length ? ++page : 0;
+                    break;
+                default:
+                    break;
+            }
+            curPage.edit(pages[page].setFooter(`Page ${page + 1} / ${pages.length}`));
+        });
+        reactionCollector.on('end', function () {
+                curPage.clearReactions();
+                curPage.edit(pages[page].setFooter("Re-search to see the other pages again."));
+            }
+        );
+        return curPage;
     },
 };
 
 const emojiMapping = {
+    "bug": "617968167620313108",
+    "dark": "617968229863784448",
+    "dragon": "617968266383458314",
+    "electric": "617968291218194432",
+    "fairy": "617968315394162725",
+    "fighting": "617968336495575050",
+    "fire": "617968361787359243",
+    "flying": "617968383744540675",
+    "ghost": "617968404376322048",
+    "grass": "617968425125412866",
+    "ground": "617968451612311583",
+    "ice": "617968478808309771",
+    "normal": "617968506524401679",
+    "poison": "617968534986686477",
+    "psychic": "617968557766213633",
+    "rock": "617968594982273024",
+    "steel": "617968618399072266",
+    "water": "617968638883790858",
+    "physical": "617968661663186945",
+    "special": "617968684534857734",
+    "status effect": "617968708320624652",
+    "star": "617978374614286360",
     'alomomola' : '717876158993137725',
     'anorith' : '717876159014240289',
     'altaria' : '717876159043469424',

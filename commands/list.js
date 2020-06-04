@@ -1,5 +1,5 @@
 const Discord = require('discord.js');
-const {getEmoji} = require("../Helpers/Helpers");
+const {getEmoji, generateSpaces, generateIVSummary, paginationEmbed} = require("../Helpers/Helpers");
 
 module.exports = {
     name: 'list',
@@ -11,29 +11,23 @@ module.exports = {
                 return {id: doc.id, ...doc.data()}
             });
         });
-        // let pokeArray = [];
-        // snapshot.forEach(x =>
-        //     getEmoji(x.pokeName, client) +
-        //     generateSpaces("LV." + x.level, 6) + "|"
-        // );
-        let embedStart = new Discord.MessageEmbed()
-            .setTitle(message.author.username + "'s Pokemon")
-            .setThumbnail(message.author.avatarURL())
-            .setColor("#3a50ff");
-        snapshot.forEach(x => embedStart.addField(
-            getEmoji(x.pokeName, client) + " ***" + x.pokeName + "***",
-            "```" + generateSpaces("LV." + x.level, 6) + "| " + x.nature[0] + "```"));
-        message.channel.send(embedStart);
+        let embeds = [];
+        let i, j, tempArray, chunk = 5;
+        for (i = 0, j = snapshot.length; i < j; i += chunk) {
+            tempArray = snapshot.slice(i, i + chunk);
+            let embed = new Discord.MessageEmbed()
+                .setTitle(message.author.username + "'s Pokemon")
+                .setThumbnail(message.author.avatarURL())
+                .setColor("#3a50ff");
+            tempArray.forEach(x => embed.addField(
+                getEmoji(x.pokeName, client) + " ***" + x.pokeName + " ID:" + x.id + "***",
+                "```" + generateSpaces("LV." + x.level, 6) + "| IV:" + generateSpaces(generateIVSummary(x.ivs), 5) + "| " + x.nature[0] + "```")
+            );
+            embeds.push(embed)
+        }
+        paginationEmbed(message, embeds);
         console.log(snapshot)
     }
 };
 
-generateSpaces = (string, maxChar) => {
-    let out = "" + string;
-    if (string.length < maxChar) {
-        for(let x = 0; x < (maxChar - string.length); x++){
-            out += " ";
-        }
-    }
-    return out;
-};
+

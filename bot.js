@@ -128,7 +128,8 @@ spawnPokemon = async (message) => {
                 'level': generatedPKMNData.level,
                 'nature': generatedPKMNData.nature,
                 'ivs': generatedPKMNData.ivs,
-                'stats': generatedPKMNData.stats
+                'stats': generatedPKMNData.stats,
+                'type': generatedPKMNData.types
             });
             const embed = new Discord.MessageEmbed()
                 .setTitle(collected.first().author.username + ' has caught the ' + data.forms[0].name + '!')
@@ -185,11 +186,13 @@ generatePKMN = async (pkmn) => {
         spdef: await generateStat(pkmn.stats, "special-defense", ivs, level, nature),
         speed: await generateStat(pkmn.stats, "speed", ivs, level, nature)
     };
+    let types = pkmn.types.map(x => x.type.name);
     return {
         level: level,
         nature: nature,
         ivs: ivs,
-        stats: stats
+        stats: stats,
+        types: types
     };
 };
 
