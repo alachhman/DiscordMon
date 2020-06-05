@@ -49,7 +49,7 @@ client.on('message', async (message) => {
                 return;
             }
 
-            if (Math.random() < 0.1 && !await db.collection('guilds').doc(message.guild.id).get().then(x => x._fieldsProto.hasSpawn.booleanValue)) {
+            if (Math.random() < 0.2 && !await db.collection('guilds').doc(message.guild.id).get().then(x => x._fieldsProto.hasSpawn.booleanValue)) {
                 let designatedChannel = await db.collection('guilds').doc(message.guild.id).get().then(x => x._fieldsProto.designatedChannel.stringValue);
                 console.log(designatedChannel);
                 if(designatedChannel === "0"){
@@ -97,7 +97,6 @@ spawnPokemon = async (message, designatedChannel) => {
         }
     });
     try {
-        console.log(data.forms[0].name);
         const embed = new Discord.MessageEmbed()
             .addField("Encounter!", 'A wild ' + await getEmoji(data.forms[0].name, client) + ' has appeared!')
             .setColor("#3a50ff")
@@ -110,15 +109,23 @@ spawnPokemon = async (message, designatedChannel) => {
         return;
     }
 
-    const filter = m => m.content.toUpperCase() === data.forms[0].name.toUpperCase();
-    const collector = channelRef.createMessageCollector(filter, {time: 15000});
-
+    const filter = m => (m.content.toUpperCase() === data.forms[0].name.toUpperCase() && !m.author.bot);
+    const collector = channelRef.createMessageCollector(filter, {time: 600000});
+    let reminder = setTimeout(async (data, client) => {
+        const embed = new Discord.MessageEmbed()
+            .addField("Reminder!", 'A wild ' + await getEmoji(data.forms[0].name, client) + ' is still waiting to be caught!')
+            .setColor("#3a50ff")
+            .setImage(data.sprites.front_default)
+            .setFooter("To catch a pokemon just type its name, for a hint mouse over the emote.");
+        channelRef.send({embed});
+    }, 300000, data, client);
     collector.on('collect', m => {
         console.log(`Collected ${m.content}`);
         collector.stop();
     });
 
     collector.on('end', async collected => {
+        clearInterval(reminder);
         if (collected.size > 0) {
             let size = 0;
             await db.collection('users')
@@ -152,6 +159,12 @@ spawnPokemon = async (message, designatedChannel) => {
                 'userName': message.author.username,
                 'latest': size
             });
+        }else{
+            const embed = new Discord.MessageEmbed()
+                .setTitle('The wild ' + data.forms[0].name + ' got away...')
+                .setColor("#dd2222")
+                .setImage(data.sprites.front_default);
+            channelRef.send({embed});
         }
         await updateGuild(message.guild, "hasSpawn", false);
     });
