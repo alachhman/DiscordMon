@@ -12,7 +12,8 @@ module.exports = {
                 } else {
                     await db.collection('users').doc(message.author.id).set({
                         'userId': message.author.id,
-                        'userName': message.author.username
+                        'userName': message.author.username,
+                        'latest': "0"
                     });
                     message.channel.send("Welcome To DiscordMon");
                 }
