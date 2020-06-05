@@ -50,7 +50,14 @@ client.on('message', async (message) => {
             }
 
             if (Math.random() < 0.1 && !await db.collection('guilds').doc(message.guild.id).get().then(x => x._fieldsProto.hasSpawn.booleanValue)) {
-                await spawnPokemon(message);
+                let designatedChannel = await db.collection('guilds').doc(message.guild.id).get().then(x => x._fieldsProto.designatedChannel.stringValue);
+                console.log(designatedChannel);
+                if(designatedChannel === "0"){
+                    message.channel.send("Use `>enable` to designate a channel for the bot to play.")
+                } else{
+                    await spawnPokemon(message, designatedChannel);
+                }
+
             }
 
             if (!message.content.startsWith(prefix) || message.author.bot) return;
@@ -68,14 +75,14 @@ client.on('message', async (message) => {
 });
 
 client.on('guildCreate', async gData => {
-    await updateGuild(gData, "guildID", gData.id);
+    await generateGuild(gData);
 });
 
 client.login(environment === "production" ? prodToken : stagingToken);
 
-spawnPokemon = async (message) => {
+spawnPokemon = async (message, designatedChannel) => {
     await updateGuild(message.guild, "hasSpawn", true);
-
+    let channelRef = message.guild.channels.cache.find(x => x.id === designatedChannel);
     let pkmn = Math.round(Math.random() * 1000) - 36;
     if (pkmn < 1) {
         pkmn = Math.abs(pkmn);
@@ -92,10 +99,11 @@ spawnPokemon = async (message) => {
     try {
         console.log(data.forms[0].name);
         const embed = new Discord.MessageEmbed()
-            .addField("Encounter!",'A wild ' + await getEmoji(data.forms[0].name, client) + ' has appeared!')
+            .addField("Encounter!", 'A wild ' + await getEmoji(data.forms[0].name, client) + ' has appeared!')
             .setColor("#3a50ff")
             .setImage(data.sprites.front_default);
-        await message.channel.send({embed});
+        channelRef.send({embed});
+        // await message.channel.send({embed});
     } catch (e) {
         await updateGuild(message.guild, "hasSpawn", false);
         console.error(e);
@@ -103,7 +111,7 @@ spawnPokemon = async (message) => {
     }
 
     const filter = m => m.content.toUpperCase() === data.forms[0].name.toUpperCase();
-    const collector = message.channel.createMessageCollector(filter, {time: 15000});
+    const collector = channelRef.createMessageCollector(filter, {time: 15000});
 
     collector.on('collect', m => {
         console.log(`Collected ${m.content}`);
@@ -117,8 +125,8 @@ spawnPokemon = async (message) => {
                 .doc(collected.first().author.id)
                 .collection('pokemon')
                 .get().then(async snap => {
-                size = snap.size + 1;
-            });
+                    size = snap.size + 1;
+                });
             let generatedPKMNData = await generatePKMN(data);
             await db.collection('users').doc(collected.first().author.id).collection('pokemon').doc(size.toString()).set({
                 'pokeID': size,
@@ -137,7 +145,8 @@ spawnPokemon = async (message) => {
                 .setColor("#38b938")
                 .setThumbnail(collected.first().author.avatarURL())
                 .setImage(data.sprites.front_default);
-            await message.channel.send({embed});
+            channelRef.send({embed});
+            // await message.channel.send({embed});
             await db.collection('users').doc(message.author.id).set({
                 'userId': message.author.id,
                 'userName': message.author.username,
@@ -145,15 +154,10 @@ spawnPokemon = async (message) => {
             });
         }
         await updateGuild(message.guild, "hasSpawn", false);
-        message.channel.send("*DEBUG:* message collector end");
     });
 };
 
-
-/**
- * @returns {Promise<void>}
- */
-updateGuild = async (guild, keyToChange, newValue) => {
+generateGuild = async (guild) => {
     let options = {
         'guildID': guild.id,
         'guildName': guild.name,
@@ -161,20 +165,31 @@ updateGuild = async (guild, keyToChange, newValue) => {
         'guildOwner': guild.owner.id,
         'guildMemberCount': guild.memberCount,
         'hasSpawn': false,
-        'prefix': '>'
+        'prefix': '>',
+        'designatedChannel': 0
     };
-    for (let key in options) {
-        if (!options.hasOwnProperty(key)) return;
+    db.collection('guilds').doc(guild.id).set(options);
+};
+
+/**
+ * @returns {Promise<void>}
+ */
+updateGuild = async (guild, keyToChange, newValue) => {
+    const snapshot = await db.collection('guilds').doc(guild.id).get().then((doc) => {
+        return {id: doc.id, ...doc.data()}
+    });
+    for (let key in snapshot) {
+        if (!snapshot.hasOwnProperty(key)) return;
         if (key === keyToChange) {
-            options[key] = newValue;
+            snapshot[key] = newValue;
         }
     }
-    db.collection('guilds').doc(guild.id).set(options);
+    db.collection('guilds').doc(guild.id).set(snapshot);
 };
 
 generatePKMN = async (pkmn) => {
     let level = await randomNum(60);
-    let nature = natures[await randomNum(natures.length)-1];
+    let nature = natures[await randomNum(natures.length) - 1];
     let ivs = {
         "hp": await randomNum(31),
         "attack": await randomNum(31),
