@@ -49,7 +49,7 @@ client.on('message', async (message) => {
                 return;
             }
 
-            if (Math.random() < 0.3 && !await db.collection('guilds').doc(message.guild.id).get().then(x => x._fieldsProto.hasSpawn.booleanValue)) {
+            if (Math.random() < 0.1 && !await db.collection('guilds').doc(message.guild.id).get().then(x => x._fieldsProto.hasSpawn.booleanValue)) {
                 await spawnPokemon(message);
             }
 
@@ -129,7 +129,8 @@ spawnPokemon = async (message) => {
                 'nature': generatedPKMNData.nature,
                 'ivs': generatedPKMNData.ivs,
                 'stats': generatedPKMNData.stats,
-                'type': generatedPKMNData.types
+                'type': generatedPKMNData.types,
+                'sprite': generatedPKMNData.sprite
             });
             const embed = new Discord.MessageEmbed()
                 .setTitle(collected.first().author.username + ' has caught the ' + data.forms[0].name + '!')
@@ -137,6 +138,11 @@ spawnPokemon = async (message) => {
                 .setThumbnail(collected.first().author.avatarURL())
                 .setImage(data.sprites.front_default);
             await message.channel.send({embed});
+            await db.collection('users').doc(message.author.id).set({
+                'userId': message.author.id,
+                'userName': message.author.username,
+                'latest': size
+            });
         }
         await updateGuild(message.guild, "hasSpawn", false);
         message.channel.send("*DEBUG:* message collector end");
@@ -166,7 +172,6 @@ updateGuild = async (guild, keyToChange, newValue) => {
     db.collection('guilds').doc(guild.id).set(options);
 };
 
-
 generatePKMN = async (pkmn) => {
     let level = await randomNum(60);
     let nature = natures[await randomNum(natures.length)-1];
@@ -192,7 +197,8 @@ generatePKMN = async (pkmn) => {
         nature: nature,
         ivs: ivs,
         stats: stats,
-        types: types
+        types: types,
+        sprite: pkmn.sprites.front_default
     };
 };
 

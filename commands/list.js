@@ -26,7 +26,7 @@ module.exports = {
             embeds.push(embed)
         }
         paginationEmbed(message, embeds);
-        console.log(snapshot)
+        // console.log(snapshot)
     }
 };
 
