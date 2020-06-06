@@ -3,8 +3,8 @@ const {getEmoji, generateSpaces, generateIVSummary, paginationEmbed, generateSta
 
 module.exports = {
     name: 'view',
-    display: 'view',
-    description: 'view a pokemon\'s info.',
+    display: '>view',
+    description: 'View a pokemon\'s info.',
     async execute(message, args, client, db) {
         if (args[0] === "latest") {
             const latest = await db

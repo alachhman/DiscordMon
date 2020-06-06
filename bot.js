@@ -43,6 +43,7 @@ client.once('ready', async () => {
 });
 
 client.on('message', async (message) => {
+    if (message.channel instanceof Discord.DMChannel) return;
     db.collection('guilds').doc(message.guild.id).get().then(async (q) => {
         if (q.exists) {
             prefix = q.data().prefix;

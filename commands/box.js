@@ -2,8 +2,8 @@ const Discord = require('discord.js');
 const {getEmoji, generateSpaces, generateIVSummary, paginationEmbed} = require("../Helpers/Helpers");
 
 module.exports = {
-    name: 'list',
-    display: 'list',
+    name: 'box',
+    display: '>box',
     description: 'shows list of all pokemon',
     async execute(message, args, client, db) {
         let snapshot = await db.collection('users').doc(message.author.id).collection('pokemon').get().then((querySnapshot) => {
@@ -26,7 +26,7 @@ module.exports = {
             let embed = new Discord.MessageEmbed()
                 .setTitle(message.author.username + "'s Pokemon")
                 .setThumbnail(message.author.avatarURL())
-                .setColor("#3a50ff");
+                .setColor("#049024");
             tempArray.forEach(x => embed.addField(
                 getEmoji(x.pokeName, client) + " **" + x.pokeName + " ID: [" + x.id + "]**",
                 "```" + generateSpaces("LV." + x.level, 6) + "| IV:" + generateSpaces(generateIVSummary(x.ivs), 5) + "| " + x.nature[0] + "```")
