@@ -32,7 +32,14 @@ let db = admin.firestore();
 
 client.once('ready', async () => {
     console.log(`Bot is running on ${client.guilds.cache.size} servers`);
-    await client.user.setActivity('sugma');
+    await client.user.setActivity('Help Command Coming Soon');
+    if (environment === "production") {
+        await db.collection('guilds').get().then(x => {
+            x.forEach(y => {
+                updateGuild(client.guilds.cache.find(z => z.id === y.data().guildID), "hasSpawn", false)
+            })
+        })
+    }
 });
 
 client.on('message', async (message) => {
@@ -52,9 +59,9 @@ client.on('message', async (message) => {
             if (Math.random() < 0.2 && !await db.collection('guilds').doc(message.guild.id).get().then(x => x._fieldsProto.hasSpawn.booleanValue)) {
                 let designatedChannel = await db.collection('guilds').doc(message.guild.id).get().then(x => x._fieldsProto.designatedChannel.stringValue);
                 console.log(designatedChannel);
-                if(designatedChannel === "0"){
+                if (designatedChannel === "0") {
                     message.channel.send("Use `>enable` to designate a channel for the bot to play.")
-                } else{
+                } else {
                     await spawnPokemon(message, designatedChannel);
                 }
 
@@ -154,12 +161,12 @@ spawnPokemon = async (message, designatedChannel) => {
                 .setImage(data.sprites.front_default);
             channelRef.send({embed});
             // await message.channel.send({embed});
-            await db.collection('users').doc(message.author.id).set({
-                'userId': message.author.id,
-                'userName': message.author.username,
+            await db.collection('users').doc(collected.first().author.id).set({
+                'userId': collected.first().author.id,
+                'userName': collected.first().author.username,
                 'latest': size
             });
-        }else{
+        } else {
             const embed = new Discord.MessageEmbed()
                 .setTitle('The wild ' + data.forms[0].name + ' got away...')
                 .setColor("#dd2222")
