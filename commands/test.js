@@ -2,8 +2,8 @@ const Discord = require('discord.js');
 
 module.exports = {
     name: 'test',
-    display: 'test',
-    description: 'test`',
+    display: '>test',
+    description: 'its a test',
     async execute(message, args, client, db) {
         await db.collection('guilds').doc(message.guild.id).get().then(async snap=>{
             console.dir(snap._fieldsProto.hasSpawn.booleanValue.valueOf());

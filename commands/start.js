@@ -2,8 +2,8 @@ const Discord = require('discord.js');
 
 module.exports = {
     name: 'start',
-    display: 'start',
-    description: 'sets person that typed command as a user`',
+    display: '>start',
+    description: 'Sets you as a trainer',
     async execute(message, args, client, db) {
         const userFile = db.collection('users').doc(message.author.id);
         userFile.get().then(async (docData) => {
