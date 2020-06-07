@@ -90,93 +90,92 @@ client.login(environment === "production" ? prodToken : stagingToken);
 
 spawnPokemon = async (message, designatedChannel) => {
     await updateGuild(message.guild, "hasSpawn", true);
-    let channelRef = message.guild.channels.cache.find(x => x.id === designatedChannel);
-    let pkmn = Math.round(Math.random() * 1000) - 36;
-    if (pkmn < 1) {
-        pkmn = Math.abs(pkmn);
-    }
-    console.log(pkmn);
-    let data;
-    await P.getPokemonByName(pkmn, function (response, error) { // with callback
-        if (!error) {
-            data = response;
-        } else {
-            console.log(error);
-        }
-    });
-    let generatedPKMNData;
     try {
-        generatedPKMNData = await generatePKMN(data);
+        let channelRef = message.guild.channels.cache.find(x => x.id === designatedChannel);
+        let pkmn = Math.round(Math.random() * 1000) - 36;
+        if (pkmn < 1) {
+            pkmn = Math.abs(pkmn);
+        }
+        console.log(pkmn);
+        let data;
+        await P.getPokemonByName(pkmn, function (response, error) { // with callback
+            if (!error) {
+                data = response;
+            } else {
+                console.log(error);
+            }
+        });
+        let generatedPKMNData = await generatePKMN(data);
         const embed = new Discord.MessageEmbed()
             .addField("Encounter!", 'A wild ' + await getEmoji(data.forms[0].name, client) + ' has appeared!')
             .setColor("#3a50ff")
             .setImage(generatedPKMNData.sprite);
         channelRef.send({embed});
         // await message.channel.send({embed});
+
+        const filter = m => (m.content.toUpperCase() === data.forms[0].name.toUpperCase() && !m.author.bot);
+        const collector = channelRef.createMessageCollector(filter, {time: 600000});
+        let reminder = setTimeout(async (data, client) => {
+            const embed = new Discord.MessageEmbed()
+                .addField("Reminder!", 'A wild ' + await getEmoji(data.forms[0].name, client) + ' is still waiting to be caught!')
+                .setColor("#3a50ff")
+                .setImage(generatedPKMNData.sprite)
+                .setFooter("To catch a pokemon just type its name, for a hint mouse over the emote.");
+            channelRef.send({embed});
+        }, 300000, data, client);
+        collector.on('collect', m => {
+            console.log(`Collected ${m.content}`);
+            collector.stop();
+        });
+
+        collector.on('end', async collected => {
+            clearInterval(reminder);
+            if (collected.size > 0) {
+                let size = 0;
+                await db.collection('users')
+                    .doc(collected.first().author.id)
+                    .collection('pokemon')
+                    .get().then(async snap => {
+                        size = snap.size + 1;
+                    });
+
+                await db.collection('users').doc(collected.first().author.id).collection('pokemon').doc(size.toString()).set({
+                    'pokeID': size,
+                    'pokeName': data.forms[0].name,
+                    'pokeNickname': data.forms[0].name,
+                    'pokeApiEntry': data.forms[0].url,
+                    'level': generatedPKMNData.level,
+                    'nature': generatedPKMNData.nature,
+                    'ivs': generatedPKMNData.ivs,
+                    'stats': generatedPKMNData.stats,
+                    'type': generatedPKMNData.types,
+                    'sprite': generatedPKMNData.sprite,
+                    'shiny': generatedPKMNData.shiny
+                });
+                const embed = new Discord.MessageEmbed()
+                    .setTitle(collected.first().author.username + ' has caught the ' + data.forms[0].name + '!')
+                    .setColor("#38b938")
+                    .setThumbnail(collected.first().author.avatarURL())
+                    .setImage(generatedPKMNData.sprite);
+                channelRef.send({embed});
+                await db.collection('users').doc(collected.first().author.id).set({
+                    'userId': collected.first().author.id,
+                    'userName': collected.first().author.username,
+                    'latest': size,
+                }, {merge: true});
+            } else {
+                const embed = new Discord.MessageEmbed()
+                    .setTitle('The wild ' + data.forms[0].name + ' got away...')
+                    .setColor("#dd2222")
+                    .setImage(generatedPKMNData.sprite);
+                channelRef.send({embed});
+            }
+            await updateGuild(message.guild, "hasSpawn", false);
+        });
     } catch (e) {
         await updateGuild(message.guild, "hasSpawn", false);
         console.error(e);
-        return;
     }
-    const filter = m => (m.content.toUpperCase() === data.forms[0].name.toUpperCase() && !m.author.bot);
-    const collector = channelRef.createMessageCollector(filter, {time: 600000});
-    let reminder = setTimeout(async (data, client) => {
-        const embed = new Discord.MessageEmbed()
-            .addField("Reminder!", 'A wild ' + await getEmoji(data.forms[0].name, client) + ' is still waiting to be caught!')
-            .setColor("#3a50ff")
-            .setImage(generatedPKMNData.sprite)
-            .setFooter("To catch a pokemon just type its name, for a hint mouse over the emote.");
-        channelRef.send({embed});
-    }, 300000, data, client);
-    collector.on('collect', m => {
-        console.log(`Collected ${m.content}`);
-        collector.stop();
-    });
-
-    collector.on('end', async collected => {
-        clearInterval(reminder);
-        if (collected.size > 0) {
-            let size = 0;
-            await db.collection('users')
-                .doc(collected.first().author.id)
-                .collection('pokemon')
-                .get().then(async snap => {
-                    size = snap.size + 1;
-                });
-
-            await db.collection('users').doc(collected.first().author.id).collection('pokemon').doc(size.toString()).set({
-                'pokeID': size,
-                'pokeName': data.forms[0].name,
-                'pokeNickname': data.forms[0].name,
-                'pokeApiEntry': data.forms[0].url,
-                'level': generatedPKMNData.level,
-                'nature': generatedPKMNData.nature,
-                'ivs': generatedPKMNData.ivs,
-                'stats': generatedPKMNData.stats,
-                'type': generatedPKMNData.types,
-                'sprite': generatedPKMNData.sprite,
-                'shiny': generatedPKMNData.shiny
-            });
-            const embed = new Discord.MessageEmbed()
-                .setTitle(collected.first().author.username + ' has caught the ' + data.forms[0].name + '!')
-                .setColor("#38b938")
-                .setThumbnail(collected.first().author.avatarURL())
-                .setImage(generatedPKMNData.sprite);
-            channelRef.send({embed});
-            await db.collection('users').doc(collected.first().author.id).set({
-                'userId': collected.first().author.id,
-                'userName': collected.first().author.username,
-                'latest': size,
-            }, {merge: true});
-        } else {
-            const embed = new Discord.MessageEmbed()
-                .setTitle('The wild ' + data.forms[0].name + ' got away...')
-                .setColor("#dd2222")
-                .setImage(generatedPKMNData.sprite);
-            channelRef.send({embed});
-        }
-        await updateGuild(message.guild, "hasSpawn", false);
-    });
 };
 
 generateGuild = async (guild) => {
