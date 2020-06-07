@@ -88,33 +88,73 @@ client.on('guildCreate', async gData => {
 
 client.login(environment === "production" ? prodToken : stagingToken);
 
+/**
+ * A function that will generate a random pokemon, display the pokemon in a designated channel, then run a message
+ * collector which waits for a user to say the pokemon's name. Once the pokemon is caught, it's added to the user's
+ * fire store pokemon collection, and another pokemon is able to be spawned in this server.
+ * @param message               Discord message object for the message that spawned a pokemon.
+ * @param designatedChannel     The channel that the >enable command has been used in.
+ * @returns                     {Promise<void>}
+ */
 spawnPokemon = async (message, designatedChannel) => {
+    /**
+     * Update guild collection: hasSpawn = true
+     */
     await updateGuild(message.guild, "hasSpawn", true);
+
     try {
+        /**
+         * Take's the designatedChannel parameter and finds the discord Object reference for it.
+         */
         let channelRef = message.guild.channels.cache.find(x => x.id === designatedChannel);
+
+        /**
+         * Generating a random number to be used in the pokeApi GET request
+         * @type {number}
+         */
         let pkmn = Math.round(Math.random() * 1000) - 36;
         if (pkmn < 1) {
             pkmn = Math.abs(pkmn);
         }
-        console.log(pkmn);
+
+        /**
+         * The pokeApi GET request which takes in the random number generated above.
+         */
         let data;
-        await P.getPokemonByName(pkmn, function (response, error) { // with callback
+        await P.getPokemonByName(pkmn, function (response, error) {
             if (!error) {
                 data = response;
             } else {
                 console.log(error);
             }
         });
+
+        /**
+         * The data returned by the pokeApi GET request is then passed through the generatePKMN() function which will
+         * trim and mutate the data to be consumable by firestore. After this is done, the resulting data is used to
+         * create the first embed sent to the designated channel whose discord channel object reference was found
+         * earlier. This is the first user facing step of this function.
+         */
         let generatedPKMNData = await generatePKMN(data);
         const embed = new Discord.MessageEmbed()
             .addField("Encounter!", 'A wild ' + await getEmoji(data.forms[0].name, client) + ' has appeared!')
             .setColor("#3a50ff")
             .setImage(generatedPKMNData.sprite);
         channelRef.send({embed});
-        // await message.channel.send({embed});
 
+        /**
+         * A message collector is created in the active channel, and is assigned a filter that only allows the collector
+         * to take in messages that are equal to the spawned pokemon name and are from non-bot accounts.
+         */
         const filter = m => (m.content.toUpperCase() === data.forms[0].name.toUpperCase() && !m.author.bot);
         const collector = channelRef.createMessageCollector(filter, {time: 600000});
+
+        /**
+         * As soon as the message collector above is created, a timeout function is set which will trigger after 5
+         * minutes have passed. When this timeout is triggered, it will send a new discord embed that reminds the
+         * channel that there is an existing spawn by displaying the same information as the first embed, with some
+         * added explanation as to how to catch the pokemon.
+         */
         let reminder = setTimeout(async (data, client) => {
             const embed = new Discord.MessageEmbed()
                 .addField("Reminder!", 'A wild ' + await getEmoji(data.forms[0].name, client) + ' is still waiting to be caught!')
@@ -123,14 +163,39 @@ spawnPokemon = async (message, designatedChannel) => {
                 .setFooter("To catch a pokemon just type its name, for a hint mouse over the emote.");
             channelRef.send({embed});
         }, 300000, data, client);
+
+        /**
+         * Event hook for the message collector that will execute every time the collector's "collect" event is fired.
+         * In this implementation, when the name of the pokemon is said even once, the collector's stop event is fired.
+         */
         collector.on('collect', m => {
             console.log(`Collected ${m.content}`);
             collector.stop();
         });
 
+        /**
+         * Event hook for the message collector that will execute every time the collector's "end" event is fired.
+         * This hook will handle the brunt of the work done in this function including adding the pokemon data to the
+         * collected user's pokemon collection in firestore, and making sure the channel and all it's data in fire store
+         * are in default states so that another pokemon can potentially spawn.
+         */
         collector.on('end', async collected => {
+            /**
+             * Because the end event has been fired, there is no longer a need for the reminder timeout, so it ends.
+             */
             clearInterval(reminder);
+
+            /**
+             * This if statement serves as a way to tell whether or not someone has actually caught the pokemon. If
+             * collected.size > 0, then that means the pokemon has been caught, otherwise, the pokemon has not.
+             */
             if (collected.size > 0) {
+
+                /**
+                 * The following code takes the firestore document of the person who caught the pokemon, and then stores
+                 * the size of their pokemon collection. This is used later to generate the pokemon's id and user's
+                 * latest pokemon firestore variable.
+                 */
                 let size = 0;
                 await db.collection('users')
                     .doc(collected.first().author.id)
@@ -139,6 +204,9 @@ spawnPokemon = async (message, designatedChannel) => {
                         size = snap.size + 1;
                     });
 
+                /**
+                 * The pokemon's data is added to the pokemon collection of the user.
+                 */
                 await db.collection('users').doc(collected.first().author.id).collection('pokemon').doc(size.toString()).set({
                     'pokeID': size,
                     'pokeName': data.forms[0].name,
@@ -152,32 +220,60 @@ spawnPokemon = async (message, designatedChannel) => {
                     'sprite': generatedPKMNData.sprite,
                     'shiny': generatedPKMNData.shiny
                 });
+
+                /**
+                 * An embed is sent to the designated channel to notify the users who caught the pokemon.
+                 */
                 const embed = new Discord.MessageEmbed()
                     .setTitle(collected.first().author.username + ' has caught the ' + data.forms[0].name + '!')
                     .setColor("#38b938")
                     .setThumbnail(collected.first().author.avatarURL())
                     .setImage(generatedPKMNData.sprite);
                 channelRef.send({embed});
+
+                /**
+                 * The firestore document of the user who caught the pokemon is updated to increment the latest variable
+                 */
                 await db.collection('users').doc(collected.first().author.id).set({
                     'userId': collected.first().author.id,
                     'userName': collected.first().author.username,
                     'latest': size,
                 }, {merge: true});
             } else {
+
+                /**
+                 * If no one catches the pokemon, an embed is sent to notify that the pokemon is no longer available.
+                 */
                 const embed = new Discord.MessageEmbed()
                     .setTitle('The wild ' + data.forms[0].name + ' got away...')
                     .setColor("#dd2222")
                     .setImage(generatedPKMNData.sprite);
                 channelRef.send({embed});
             }
+
+            /**
+             * Regardless of whether or not someone catches the pokemon, the guild's firestore document is updated
+             * to hasSpawn = false, so that another pokemon is able to spawn.
+             */
             await updateGuild(message.guild, "hasSpawn", false);
         });
+
+        /**
+         * At the very end of this function is another call to set hasSpawn = false inside of an error catch. The reason
+         * for this is because if an error occurs inside the try brackets, the guild's hasSpawn would otherwise be stuck
+         * on true, meaning no pokemon would spawn.
+         */
     } catch (e) {
         await updateGuild(message.guild, "hasSpawn", false);
         console.error(e);
     }
 };
 
+/**
+ * Function that takes in a discord guild object and writes it's data to the firestore database.
+ * @param guild                 Discord guild object.
+ * @returns {Promise<void>}
+ */
 generateGuild = async (guild) => {
     let options = {
         'guildID': guild.id,
@@ -193,7 +289,16 @@ generateGuild = async (guild) => {
 };
 
 /**
- * @returns {Promise<void>}
+ * Function that takes in a discord guild object, uses the guild's id to query and return the guild's data in fire
+ * store. The keys of the firestore data is then looped through until a key whose name is equal to the input parameter
+ * keyToChange is found. The value of the key is then changed to the value of the input variable newValue, and the
+ * guild's entry in firestore is updated to be the new version of the document, after the key value is swapped.
+ * This function is used throughout this file in order to set the hasSpawn boolean, however can be used to change any
+ * of the values from the firestore document.
+ * @param guild                 The discord guild object of the guild whose firestore document is to be updated.
+ * @param keyToChange           The object key that is to be changed.
+ * @param newValue              The value that will replace the existing value in the keyToChange.
+ * @returns {Promise<void>}     Resolves to void.
  */
 updateGuild = async (guild, keyToChange, newValue) => {
     const snapshot = await db.collection('guilds').doc(guild.id).get().then((doc) => {
@@ -208,6 +313,18 @@ updateGuild = async (guild, keyToChange, newValue) => {
     db.collection('guilds').doc(guild.id).set(snapshot);
 };
 
+/**
+ * Generates a new pokemon object that is consumable by firestore. This object consists of:
+ * - Level: random number from 1-60.
+ * - nature: array of strings pulled by entering a random number into the natures map.
+ * - shiny: boolean determining shiny status. Current odds are 1/80.
+ * - ivs: object of numbers where value can be 1-31.
+ * - stats: object of numbers generated in the generateStat() function by passing through base stats, iv, nature, level.
+ * - type: the type of the pokemon from the pokeApi data.
+ * - sprite: the sprite of the pokemon from the pokeApi data.
+ * @param pkmn      Pokemon data from pokeapi GET request.
+ * @returns         pokemon Object consumable by firestore.
+ */
 generatePKMN = async (pkmn) => {
     let level = await randomNum(60);
     let nature = natures[await randomNum(natures.length) - 1];
@@ -240,6 +357,16 @@ generatePKMN = async (pkmn) => {
     };
 };
 
+/**
+ * Function used to generate stats that are accurate to the actual pokemon games. By taking in a base stats, the iv, the
+ * level, and nature of a pokemon, those values can be passed into a formula that outputs a game-accurate stat.
+ * @param stats                     An array of stats passed from generatePKMN().
+ * @param statToGen                 The specific stat that will be output from this function.
+ * @param ivs                       The iv object of the pokemon to be generated.
+ * @param level                     The level of the pokemon to be generated.
+ * @param nature                    The nature of the pokemon to be generated.
+ * @returns {Promise<number>}       Resolves to a number accurate to the pokemon's stat.
+ */
 generateStat = async (stats, statToGen, ivs, level, nature) => {
     let bs = 0;
 
@@ -261,10 +388,19 @@ generateStat = async (stats, statToGen, ivs, level, nature) => {
     }
 };
 
+/**
+ * Generates a random number whose floor is 0 and ceiling is designated by the max parameter.
+ * @param max                       The ceiling for the rng roll.
+ * @returns {Promise<number>}       A number from 0-max.
+ */
 randomNum = async (max) => {
     return Math.floor(Math.random() * Math.floor(max)) + 1;
 };
 
+/**
+ * A 2d array containing the name of every pokemon nature along with it's boon ([1]) and bane ([2]).
+ * @type {string[][]}
+ */
 const natures = [
     ['Hardy', 'None', 'None'],
     ['Lonely', 'attack', 'defense'],
