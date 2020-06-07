@@ -6,6 +6,35 @@ module.exports = {
     display: '>view',
     description: 'View a pokemon\'s info.',
     async execute(message, args, client, db) {
+        if(args[0] === "buddy"){
+            const buddy = await db
+                .collection('users')
+                .doc(message.author.id)
+                .get()
+                .then((querySnapshot) => {
+                    return {id: querySnapshot.id, ...querySnapshot.data()}
+                });
+            if (!buddy.hasOwnProperty("buddy")) {
+                const errorEmbed = new Discord.MessageEmbed()
+                    .setTitle("You currently don't have a buddy...")
+                    .addField("How do I set my buddy?", `>buddy [ID of a pokemon]`)
+                    .setThumbnail(message.author.avatarURL())
+                    .setColor("#ff2620");
+                await message.channel.send({errorEmbed});
+                return;
+            }
+            const snapshot = await db
+                .collection('users')
+                .doc(message.author.id)
+                .collection('pokemon')
+                .doc(buddy.buddy)
+                .get()
+                .then((querySnapshot) => {
+                    return {id: querySnapshot.id, ...querySnapshot.data()}
+                });
+            sendEmbed(snapshot, message);
+            return;
+        }
         if (args[0] === "latest") {
             const latest = await db
                 .collection('users')
@@ -54,8 +83,14 @@ sendEmbed = (snapshot, message) => {
     for (let stat in snapshot.stats) {
         bst += snapshot.stats[stat];
     }
+    let embedName = message.author.username + "'s " + snapshot.pokeName;
+    if(snapshot.hasOwnProperty("shiny")){
+        if(snapshot.shiny){
+            embedName += "✨";
+        }
+    }
     const embed = new Discord.MessageEmbed()
-        .setAuthor(message.author.username + "'s " + snapshot.pokeName, "https://www.serebii.net/pokedex-sm/icon/" + snapshot.pokeApiEntry.replace('https://pokeapi.co/api/v2/pokemon-form/', '').replace("/", '') + ".png")
+        .setAuthor(embedName, "https://www.serebii.net/pokedex-sm/icon/" + snapshot.pokeApiEntry.replace('https://pokeapi.co/api/v2/pokemon-form/', '').replace("/", '') + ".png")
         .setThumbnail(snapshot.sprite)
         .addField("Level", snapshot.level, true)
         .addField("Type", typing, true)

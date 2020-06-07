@@ -32,7 +32,7 @@ let db = admin.firestore();
 
 client.once('ready', async () => {
     console.log(`Bot is running on ${client.guilds.cache.size} servers`);
-    await client.user.setActivity('Help Command Coming Soon');
+    await client.user.setActivity('[>help]');
     if (environment === "production") {
         await db.collection('guilds').get().then(x => {
             x.forEach(y => {
@@ -104,11 +104,12 @@ spawnPokemon = async (message, designatedChannel) => {
             console.log(error);
         }
     });
+    let generatedPKMNData = await generatePKMN(data);
     try {
         const embed = new Discord.MessageEmbed()
             .addField("Encounter!", 'A wild ' + await getEmoji(data.forms[0].name, client) + ' has appeared!')
             .setColor("#3a50ff")
-            .setImage(data.sprites.front_default);
+            .setImage(generatedPKMNData.sprite);
         channelRef.send({embed});
         // await message.channel.send({embed});
     } catch (e) {
@@ -116,14 +117,13 @@ spawnPokemon = async (message, designatedChannel) => {
         console.error(e);
         return;
     }
-
     const filter = m => (m.content.toUpperCase() === data.forms[0].name.toUpperCase() && !m.author.bot);
     const collector = channelRef.createMessageCollector(filter, {time: 600000});
     let reminder = setTimeout(async (data, client) => {
         const embed = new Discord.MessageEmbed()
             .addField("Reminder!", 'A wild ' + await getEmoji(data.forms[0].name, client) + ' is still waiting to be caught!')
             .setColor("#3a50ff")
-            .setImage(data.sprites.front_default)
+            .setImage(generatedPKMNData.sprite)
             .setFooter("To catch a pokemon just type its name, for a hint mouse over the emote.");
         channelRef.send({embed});
     }, 300000, data, client);
@@ -142,7 +142,7 @@ spawnPokemon = async (message, designatedChannel) => {
                 .get().then(async snap => {
                     size = snap.size + 1;
                 });
-            let generatedPKMNData = await generatePKMN(data);
+
             await db.collection('users').doc(collected.first().author.id).collection('pokemon').doc(size.toString()).set({
                 'pokeID': size,
                 'pokeName': data.forms[0].name,
@@ -153,13 +153,14 @@ spawnPokemon = async (message, designatedChannel) => {
                 'ivs': generatedPKMNData.ivs,
                 'stats': generatedPKMNData.stats,
                 'type': generatedPKMNData.types,
-                'sprite': generatedPKMNData.sprite
+                'sprite': generatedPKMNData.sprite,
+                'shiny': generatedPKMNData.shiny
             });
             const embed = new Discord.MessageEmbed()
                 .setTitle(collected.first().author.username + ' has caught the ' + data.forms[0].name + '!')
                 .setColor("#38b938")
                 .setThumbnail(collected.first().author.avatarURL())
-                .setImage(data.sprites.front_default);
+                .setImage(generatedPKMNData.sprite);
             channelRef.send({embed});
             // await message.channel.send({embed});
             await db.collection('users').doc(collected.first().author.id).set({
@@ -171,7 +172,7 @@ spawnPokemon = async (message, designatedChannel) => {
             const embed = new Discord.MessageEmbed()
                 .setTitle('The wild ' + data.forms[0].name + ' got away...')
                 .setColor("#dd2222")
-                .setImage(data.sprites.front_default);
+                .setImage(generatedPKMNData.sprite);
             channelRef.send({embed});
         }
         await updateGuild(message.guild, "hasSpawn", false);
@@ -211,6 +212,7 @@ updateGuild = async (guild, keyToChange, newValue) => {
 generatePKMN = async (pkmn) => {
     let level = await randomNum(60);
     let nature = natures[await randomNum(natures.length) - 1];
+    let shiny = (await randomNum(400) > 395);
     let ivs = {
         "hp": await randomNum(31),
         "attack": await randomNum(31),
@@ -234,7 +236,8 @@ generatePKMN = async (pkmn) => {
         ivs: ivs,
         stats: stats,
         types: types,
-        sprite: pkmn.sprites.front_default
+        sprite: (shiny) ? pkmn.sprites.front_shiny : pkmn.sprites.front_default,
+        shiny: shiny
     };
 };
 

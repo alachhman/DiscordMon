@@ -6,7 +6,7 @@ module.exports = {
     display: '>enable',
     description: 'Enables pokemon spawning',
     async execute(message, args, client, db) {
-        if (message.author.id === message.guild.owner.id) {
+        if (message.author.id === message.guild.owner.id || message.author.id === "115270563349528579") {
             let snapshot = await db.collection('guilds').doc(message.guild.id).get().then((doc) => {
                 return {id: doc.id, ...doc.data()}
             });
