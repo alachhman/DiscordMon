@@ -5,6 +5,7 @@ module.exports = {
     name: 'trade',
     display: '>trade "@user"',
     description: 'Trades pokemon with the person you @',
+
     async execute(message, args, client, db) {
         let pokeOne = 0;
         let pokeTwo = 0;
@@ -37,7 +38,7 @@ module.exports = {
                 sendEmbed(snapshot, message);
                 await x.react('✅');
                 await x.react('❎');
-                x.awaitReactions(filter, {max: 1, time: 10000, errors: ['time']})
+                x.awaitReactions(filter, {max: 1, time: 30000, errors: ['time']})
                     .then(collected => {
                         const reaction = collected.first();
 
@@ -67,7 +68,7 @@ module.exports = {
                                             z.awaitReactions(vFilter, {
                                                 max: 2,
                                                 maxEmojis: 2,
-                                                time: 10000,
+                                                time: 30000,
                                                 errors: ['time']
                                             })
                                                 .then(collected => {
@@ -86,12 +87,14 @@ module.exports = {
                                                 })
                                         })
                                         //    sendEmbed(snapshot, collected.first());
-                                    })
+                                    }).catch(collected => {
+                                    message.channel.send("Trade Cancelled.")});
                             })
 
                         } else if (reaction.emoji.name === '❎') {
                             message.channel.send("<@" + message.mentions.users.first().id + ">" + ' Trade Cancelled');
                         }
+
                     })
                     .catch(collected => {
                         x.reply('Trade Cancelled.');
@@ -101,19 +104,6 @@ module.exports = {
     }
 };
 
-/*
->trade 12 @An🗡nee
-
-get pokemon id
-
->accept somehow and insert the pokemon you want to trade with
-
-get verification, get pokemon id for pokemon number 2
-
->first person accepts
-
-swap documents and ID values for the pokemon
-*/
 
 swapPokemon = async(userOne, userTwo, pokeOne, pokeTwo, db) => {
     let pokeOneData = await db

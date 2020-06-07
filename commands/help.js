@@ -1,10 +1,19 @@
 const Discord = require('discord.js');
 
-
 module.exports = {
     name: 'help',
     display: '>help',
     description: 'Messages user the commands of the bot',
+    /**
+     *  Function that send the user that used the command a private message embed of every command and what it does to their inbox.
+     *  It does this by accessing every commands through client.commands, and for each command it adds an embed field containing
+     *  the display or "name" of function and description.
+     * @param message
+     * @param args
+     * @param client
+     * @param db
+     * @returns {Promise<void>}
+     */
     async execute(message, args, client, db) {
         const embed = new Discord.MessageEmbed()
             .setColor("#049024")
