@@ -6,6 +6,8 @@ module.exports = {
     display: '>trade "@user"',
     description: 'Trades pokemon with the person you @',
     async execute(message, args, client, db) {
+        let pokeOne = 0;
+        let pokeTwo = 0;
         if (isNaN(args[0])) {
             message.channel.send("Enter the ID of a pokemon, the person you want to trade with, and try again.");
         } else if (message.mentions.users.first().id === message.author.id) {
@@ -41,16 +43,17 @@ module.exports = {
 
                         if (reaction.emoji.name === '✅') {
                             message.reply("<@" + message.mentions.users.first().id + ">" + ' accepted the trade ' + "\n" + "<@" + message.mentions.users.first().id + ">" + " Choose a Pokemon").then((x) => {
-
-                                const tradeReply = x.content.split(/ +/);
                                 message.channel.awaitMessages(mFilter, {max: 1, time: 30000, errors: ['time']})
                                     .then(async collected => {
-                                        //      message.channel.send(collected.first().content);
+                                        const tradeReply = collected.first().content.split(/ +/);
+                                        if(isNaN(parseInt(tradeReply[0]))) return;
+                                        pokeOne = args[0];
+                                        pokeTwo = tradeReply[0];
                                         const snapshot = await db
                                             .collection('users')
                                             .doc(message.mentions.users.first().id)
                                             .collection('pokemon')
-                                            .doc(collected.first().content)
+                                            .doc(tradeReply[0])
                                             .get()
                                             .then((querySnapshot) => {
                                                 return {id: querySnapshot.id, ...querySnapshot.data()}
@@ -76,15 +79,13 @@ module.exports = {
                                                     });
                                                     if (declined) {
                                                         message.channel.send("successful trade!")
+                                                        swapPokemon(message.author.id, message.mentions.users.first().id, pokeOne, pokeTwo, db);
                                                     } else {
                                                         message.channel.send("<@" + message.mentions.users.first().id + ">" + ' Trade Cancelled');
                                                     }
                                                 })
                                         })
-
-
                                         //    sendEmbed(snapshot, collected.first());
-
                                     })
                             })
 
@@ -113,3 +114,35 @@ get verification, get pokemon id for pokemon number 2
 
 swap documents and ID values for the pokemon
 */
+
+swapPokemon = async(userOne, userTwo, pokeOne, pokeTwo, db) => {
+    let pokeOneData = await db
+        .collection('users')
+        .doc(userOne)
+        .collection('pokemon')
+        .doc(pokeOne)
+        .get()
+        .then((querySnapshot) => {
+            return {id: querySnapshot.id, ...querySnapshot.data()}
+        });
+    let pokeTwoData = await db
+        .collection('users')
+        .doc(userTwo)
+        .collection('pokemon')
+        .doc(pokeTwo)
+        .get()
+        .then((querySnapshot) => {
+            return {id: querySnapshot.id, ...querySnapshot.data()}
+        });
+
+    let temp = pokeOneData.pokeID;
+    pokeOneData.pokeID = pokeTwoData.pokeID;
+    pokeTwoData.pokeID = temp;
+
+    let temper = pokeOneData.id;
+    pokeOneData.id = pokeTwoData.id;
+    pokeTwoData.id = temp;
+
+    await db.collection('users').doc(userOne).collection('pokemon').doc(pokeTwoData.pokeID.toString()).set(pokeTwoData);
+    await db.collection('users').doc(userTwo).collection('pokemon').doc(pokeOneData.pokeID.toString()).set(pokeOneData);
+};
