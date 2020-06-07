@@ -104,8 +104,9 @@ spawnPokemon = async (message, designatedChannel) => {
             console.log(error);
         }
     });
-    let generatedPKMNData = await generatePKMN(data);
+    let generatedPKMNData;
     try {
+        generatedPKMNData = await generatePKMN(data);
         const embed = new Discord.MessageEmbed()
             .addField("Encounter!", 'A wild ' + await getEmoji(data.forms[0].name, client) + ' has appeared!')
             .setColor("#3a50ff")
@@ -162,12 +163,11 @@ spawnPokemon = async (message, designatedChannel) => {
                 .setThumbnail(collected.first().author.avatarURL())
                 .setImage(generatedPKMNData.sprite);
             channelRef.send({embed});
-            // await message.channel.send({embed});
             await db.collection('users').doc(collected.first().author.id).set({
                 'userId': collected.first().author.id,
                 'userName': collected.first().author.username,
-                'latest': size
-            });
+                'latest': size,
+            }, {merge: true});
         } else {
             const embed = new Discord.MessageEmbed()
                 .setTitle('The wild ' + data.forms[0].name + ' got away...')

@@ -27,7 +27,7 @@ module.exports = {
                 .collection('users')
                 .doc(message.author.id)
                 .collection('pokemon')
-                .doc(buddy.buddy)
+                .doc(buddy.buddy.toString())
                 .get()
                 .then((querySnapshot) => {
                     return {id: querySnapshot.id, ...querySnapshot.data()}
