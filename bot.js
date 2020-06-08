@@ -44,42 +44,32 @@ client.once('ready', async () => {
 
 client.on('message', async (message) => {
     if (message.channel instanceof Discord.DMChannel) return;
-    db.collection('guilds').doc(message.guild.id).get().then(async (q) => {
-        if (q.exists) {
-            prefix = q.data().prefix;
-
-            if (message.content.includes('thanks bud')) {
-                message.reply("no problem fam");
-                return;
-            }
-
-            if (message.author.bot) {
-                return;
-            }
-
-            if (Math.random() < 0.2 && !await db.collection('guilds').doc(message.guild.id).get().then(x => x._fieldsProto.hasSpawn.booleanValue)) {
-                let designatedChannel = await db.collection('guilds').doc(message.guild.id).get().then(x => x._fieldsProto.designatedChannel.stringValue);
-                console.log(designatedChannel);
-                if (designatedChannel === "0") {
-                    message.channel.send("Use `>enable` to designate a channel for the bot to play.")
-                } else {
-                    await spawnPokemon(message, designatedChannel);
-                }
-
-            }
-
-            if (!message.content.startsWith(prefix) || message.author.bot) return;
-            const args = message.content.slice(prefix.length).split(/ +/);
-            const command = args.shift().toLowerCase();
-            if (!client.commands.has(command)) return;
-            try {
-                client.commands.get(command).execute(message, args, client, db);
-            } catch (error) {
-                console.error(error);
-                message.reply('Cannot run command!');
-            }
+    if (message.content.includes('thanks bud')) {
+        message.reply("no problem fam");
+        return;
+    }
+    if (message.author.bot) {
+        return;
+    }
+    if (Math.random() < 0.2 && !await db.collection('guilds').doc(message.guild.id).get().then(x => x._fieldsProto.hasSpawn.booleanValue)) {
+        let designatedChannel = await db.collection('guilds').doc(message.guild.id).get().then(x => x._fieldsProto.designatedChannel.stringValue);
+        console.log(designatedChannel);
+        if (designatedChannel === "0") {
+            message.channel.send("Use `>enable` to designate a channel for the bot to play.")
+        } else {
+            await spawnPokemon(message, designatedChannel);
         }
-    });
+    }
+    if (!message.content.startsWith(prefix) || message.author.bot) return;
+    const args = message.content.slice(prefix.length).split(/ +/);
+    const command = args.shift().toLowerCase();
+    if (!client.commands.has(command)) return;
+    try {
+        client.commands.get(command).execute(message, args, client, db);
+    } catch (error) {
+        console.error(error);
+        message.reply('Cannot run command!');
+    }
 });
 
 client.on('guildCreate', async gData => {
