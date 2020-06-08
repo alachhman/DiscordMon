@@ -1,6 +1,6 @@
 const fs = require('fs');
 const Discord = require('discord.js');
-const {prodToken, stagingToken, environment} = require('./auth.json');
+const {prodToken, stagingToken, environment, prefix} = require('./auth.json');
 const client = new Discord.Client();
 const dotenv = require('dotenv/config');
 const Pokedex = require('pokedex-promise-v2');
@@ -14,7 +14,7 @@ for (const file of commandFiles) {
     client.commands.set(command.name, command);
 }
 //import settings
-let prefix;
+
 const token = process.env.TOKEN;
 const owner = process.env.OWNER;
 
