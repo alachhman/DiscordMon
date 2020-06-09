@@ -23,6 +23,8 @@ const firebase = require('firebase/app');
 const FieldValue = require('firebase-admin').firestore.FieldValue;
 const admin = require('firebase-admin');
 const serviceAccount = require('./serviceAccount.json');
+const {generateIVSummary} = require("./Helpers/Helpers");
+const {generateSpaces} = require("./Helpers/Helpers");
 
 admin.initializeApp({
     credential: admin.credential.cert(serviceAccount)
@@ -36,7 +38,7 @@ client.once('ready', async () => {
     if (environment === "production") {
         await db.collection('guilds').get().then(x => {
             x.forEach(y => {
-                updateGuild(client.guilds.cache.find(z => z.id === y.data().guildID), "hasSpawn", false)
+                updateGuild(x, "hasSpawn", false)
             })
         })
     }
@@ -51,13 +53,16 @@ client.on('message', async (message) => {
     if (message.author.bot) {
         return;
     }
-    if (Math.random() < 0.2 && !await db.collection('guilds').doc(message.guild.id).get().then(x => x._fieldsProto.hasSpawn.booleanValue)) {
-        let designatedChannel = await db.collection('guilds').doc(message.guild.id).get().then(x => x._fieldsProto.designatedChannel.stringValue);
-        console.log(designatedChannel);
-        if (designatedChannel === "0") {
-            message.channel.send("Use `>enable` to designate a channel for the bot to play.")
-        } else {
-            await spawnPokemon(message, designatedChannel);
+    if (Math.random() < 0.15) {
+        let channel = await db.collection('guilds').doc(message.guild.id).get().then(x => x.data());
+        if (!channel.hasSpawn) {
+            let designatedChannel = channel.designatedChannel;
+            console.log(designatedChannel);
+            if (designatedChannel === "0") {
+                message.channel.send("Use `>enable` to designate a channel for the bot to play.")
+            } else {
+                await spawnPokemon(message, designatedChannel);
+            }
         }
     }
     if (!message.content.startsWith(prefix) || message.author.bot) return;
@@ -88,9 +93,16 @@ client.login(environment === "production" ? prodToken : stagingToken);
  */
 spawnPokemon = async (message, designatedChannel) => {
     /**
+     * Creates a reference to the guild's firebase Doc
+     */
+    let guild = await db.collection('guilds').doc(message.guild.id).get().then((doc) => {
+        return {id: doc.id, ...doc.data()}
+    });
+
+    /**
      * Update guild collection: hasSpawn = true
      */
-    await updateGuild(message.guild, "hasSpawn", true);
+    guild = await updateGuild(guild, "hasSpawn", true);
 
     try {
         /**
@@ -159,7 +171,7 @@ spawnPokemon = async (message, designatedChannel) => {
          * In this implementation, when the name of the pokemon is said even once, the collector's stop event is fired.
          */
         collector.on('collect', m => {
-            console.log(`Collected ${m.content}`);
+            console.log(m.author.username + " caught " + m.content);
             collector.stop();
         });
 
@@ -170,6 +182,13 @@ spawnPokemon = async (message, designatedChannel) => {
          * are in default states so that another pokemon can potentially spawn.
          */
         collector.on('end', async collected => {
+            let user = await db
+                .collection('users')
+                .doc(collected.first().author.id)
+                .get().then(x => {
+                    return {id: x.id, ...x.data()}
+                });
+
             /**
              * Because the end event has been fired, there is no longer a need for the reminder timeout, so it ends.
              */
@@ -219,6 +238,8 @@ spawnPokemon = async (message, designatedChannel) => {
                     .setColor("#38b938")
                     .setThumbnail(collected.first().author.avatarURL())
                     .setImage(generatedPKMNData.sprite);
+                let out = "```" + generateSpaces("LV." + generatedPKMNData.level, 6) + "| IV:" + generateSpaces(generateIVSummary(generatedPKMNData.ivs), 5) + "| " + generatedPKMNData.nature[0] + "```";
+                embed.addField("Info:", out);
                 channelRef.send({embed});
 
                 /**
@@ -229,6 +250,28 @@ spawnPokemon = async (message, designatedChannel) => {
                     'userName': collected.first().author.username,
                     'latest': size,
                 }, {merge: true});
+
+                /**
+                 * Handling level up
+                 */
+                if(user.hasOwnProperty("buddy")){
+                    if(user.buddy !== "0"){
+                        let buddyData = await db
+                            .collection('users')
+                            .doc(collected.first().author.id)
+                            .collection('pokemon')
+                            .doc(user.buddy)
+                            .get().then(x => x.data());
+                        if(buddyData.level < 100){
+                            let num = await randomNum(buddyData.level + (generatedPKMNData.level - buddyData.level));
+                            const isLevelUp = (num + buddyData.level) > buddyData.level * 1.5;
+                            // console.log("isLevelUp: " + isLevelUp + " : " + (num + buddyData.level) + " vs " + (buddyData.level * 1.5));
+                            if(isLevelUp){
+                                await levelUp(collected.first().author, buddyData, channelRef);
+                            }
+                        }
+                    }
+                }
             } else {
 
                 /**
@@ -245,7 +288,7 @@ spawnPokemon = async (message, designatedChannel) => {
              * Regardless of whether or not someone catches the pokemon, the guild's firestore document is updated
              * to hasSpawn = false, so that another pokemon is able to spawn.
              */
-            await updateGuild(message.guild, "hasSpawn", false);
+            guild = await updateGuild(guild, "hasSpawn", false);
         });
 
         /**
@@ -254,9 +297,48 @@ spawnPokemon = async (message, designatedChannel) => {
          * on true, meaning no pokemon would spawn.
          */
     } catch (e) {
-        await updateGuild(message.guild, "hasSpawn", false);
+        guild = await updateGuild(guild, "hasSpawn", false);
         console.error(e);
     }
+};
+
+levelUp = async (user, buddyData, channelRef) => {
+    let buddy = buddyData;
+    buddy.level = buddy.level += 1;
+    let temp = buddy.stats;
+    let data;
+    await P.getPokemonByName(buddy.pokeName, function (response, error) {
+        if (!error) {
+            data = response;
+        } else {
+            console.log(error);
+        }
+    });
+    buddy.stats = {
+        hp: await generateStat(data.stats, "hp", buddy.ivs, buddy.level, buddy.nature),
+        atk: await generateStat(data.stats, "attack", buddy.ivs, buddy.level, buddy.nature),
+        def: await generateStat(data.stats, "defense", buddy.ivs, buddy.level, buddy.nature),
+        spatk: await generateStat(data.stats, "special-attack", buddy.ivs, buddy.level, buddy.nature),
+        spdef: await generateStat(data.stats, "special-defense", buddy.ivs, buddy.level, buddy.nature),
+        speed: await generateStat(data.stats, "speed", buddy.ivs, buddy.level, buddy.nature)
+    };
+    await db.collection('users')
+        .doc(user.id)
+        .collection('pokemon')
+        .doc(buddy.pokeID.toString())
+        .set(buddy);
+    const embed = new Discord.MessageEmbed()
+        .setTitle(user.username + "'s " + buddy.pokeName + " has leveled up!")
+        .addField('Level Up!', "LV " + (buddy.level - 1) + " → " + buddy.level)
+        .addField('HP', temp.hp + " → " + buddy.stats.hp, true)
+        .addField('ATK', temp.atk + " → " + buddy.stats.atk, true)
+        .addField('DEF', temp.def + " → " + buddy.stats.def, true)
+        .addField('SPATK', temp.spatk + " → " + buddy.stats.spatk, true)
+        .addField('SPDEF', temp.spdef + " → " + buddy.stats.spdef, true)
+        .addField('SPEED', temp.speed + " → " + buddy.stats.speed, true)
+        .setThumbnail(buddy.sprite)
+        .setColor("#38b938");
+    channelRef.send({embed})
 };
 
 /**
@@ -279,28 +361,25 @@ generateGuild = async (guild) => {
 };
 
 /**
- * Function that takes in a discord guild object, uses the guild's id to query and return the guild's data in fire
- * store. The keys of the firestore data is then looped through until a key whose name is equal to the input parameter
- * keyToChange is found. The value of the key is then changed to the value of the input variable newValue, and the
- * guild's entry in firestore is updated to be the new version of the document, after the key value is swapped.
- * This function is used throughout this file in order to set the hasSpawn boolean, however can be used to change any
- * of the values from the firestore document.
- * @param guild                 The discord guild object of the guild whose firestore document is to be updated.
+ * Function that takes in a discord guild document from the firestore database. The keys of the firestore data is then
+ * looped through until a key whose name is equal to the input parameter keyToChange is found. The value of the key is
+ * then changed to the value of the input variable newValue, and the guild's entry in firestore is updated to be the new
+ * version of the document, after the key value is swapped. This function is used throughout this file in order to set
+ * the hasSpawn boolean, however can be used to change any of the values from the firestore document.
+ * @param guild                 The discord guild snapshot from firestore.
  * @param keyToChange           The object key that is to be changed.
  * @param newValue              The value that will replace the existing value in the keyToChange.
  * @returns {Promise<void>}     Resolves to void.
  */
 updateGuild = async (guild, keyToChange, newValue) => {
-    const snapshot = await db.collection('guilds').doc(guild.id).get().then((doc) => {
-        return {id: doc.id, ...doc.data()}
-    });
-    for (let key in snapshot) {
-        if (!snapshot.hasOwnProperty(key)) return;
+    for (let key in guild) {
+        if (!guild.hasOwnProperty(key)) return guild;
         if (key === keyToChange) {
-            snapshot[key] = newValue;
+            guild[key] = newValue;
         }
     }
-    db.collection('guilds').doc(guild.id).set(snapshot);
+    db.collection('guilds').doc(guild.id).set(guild);
+    return guild;
 };
 
 /**
