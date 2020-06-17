@@ -229,17 +229,17 @@ spawnPokemon = async (message, designatedChannel) => {
                     'sprite': generatedPKMNData.sprite,
                     'shiny': generatedPKMNData.shiny
                 });
-
                 /**
                  * An embed is sent to the designated channel to notify the users who caught the pokemon.
                  */
+                let catchDollar = parseInt(generatedPKMNData.level * 2);
                 const embed = new Discord.MessageEmbed()
                     .setTitle(collected.first().author.username + ' has caught the ' + data.forms[0].name + '!')
                     .setColor("#38b938")
                     .setThumbnail(collected.first().author.avatarURL())
                     .setImage(generatedPKMNData.sprite);
                 let out = "```" + generateSpaces("LV." + generatedPKMNData.level, 6) + "| IV:" + generateSpaces(generateIVSummary(generatedPKMNData.ivs), 5) + "| " + generatedPKMNData.nature[0] + "```";
-                embed.addField("Info:" + '\n' + "PokeDollars Obtained: " + parseInt(generatedPKMNData.level * 2),out, out);
+                embed.addField("Info:" + '\n' + "PokeDollars Obtained: " + catchDollar ,out, out);
               //  embed.addField("PokeDollars Obtained:" + parseInt(generatedPKMNData.level * 2),out)
                 channelRef.send({embed});
 
@@ -247,16 +247,14 @@ spawnPokemon = async (message, designatedChannel) => {
                  * Handle Coins
                  */
 
-                const snapshot = await db.collection('users').doc(collected.first().author.id).get().then((doc) => {
-                    return {id: doc.id, ...doc.data()}
-                })
+
 
                 let dollarSnap;
 
-                if(isNaN(snapshot.pDollar)){
-                    dollarSnap = parseInt(generatedPKMNData.level * 2)
+                if('pDollar' in user){
+                    dollarSnap = parseInt(user.pDollar + (catchDollar))
                 }
-                else dollarSnap = parseInt(snapshot.pDollar + (generatedPKMNData.level * 2))
+                else  dollarSnap = parseInt(catchDollar)
 
 
                 /**
