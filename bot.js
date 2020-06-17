@@ -239,7 +239,8 @@ spawnPokemon = async (message, designatedChannel) => {
                     .setThumbnail(collected.first().author.avatarURL())
                     .setImage(generatedPKMNData.sprite);
                 let out = "```" + generateSpaces("LV." + generatedPKMNData.level, 6) + "| IV:" + generateSpaces(generateIVSummary(generatedPKMNData.ivs), 5) + "| " + generatedPKMNData.nature[0] + "```";
-                embed.addField("Info:", out);
+                embed.addField("Info:" + '\n' + "PokeDollars Obtained: " + parseInt(generatedPKMNData.level * 2),out, out);
+              //  embed.addField("PokeDollars Obtained:" + parseInt(generatedPKMNData.level * 2),out)
                 channelRef.send({embed});
 
                 /**
