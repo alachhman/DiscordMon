@@ -243,12 +243,29 @@ spawnPokemon = async (message, designatedChannel) => {
                 channelRef.send({embed});
 
                 /**
+                 * Handle Coins
+                 */
+
+                const snapshot = await db.collection('users').doc(collected.first().author.id).get().then((doc) => {
+                    return {id: doc.id, ...doc.data()}
+                })
+
+                let dollarSnap;
+
+                if(isNaN(snapshot.pDollar)){
+                    dollarSnap = parseInt(generatedPKMNData.level * 2)
+                }
+                else dollarSnap = parseInt(snapshot.pDollar + (generatedPKMNData.level * 2))
+
+
+                /**
                  * The firestore document of the user who caught the pokemon is updated to increment the latest variable
                  */
                 await db.collection('users').doc(collected.first().author.id).set({
                     'userId': collected.first().author.id,
                     'userName': collected.first().author.username,
                     'latest': size,
+                    'pDollar' : dollarSnap
                 }, {merge: true});
 
                 /**

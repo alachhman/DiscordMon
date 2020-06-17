@@ -19,5 +19,8 @@
     "image-js": "^0.21.9",
     "pokedex-promise-v2": "^3.2.0",
     "pokesprite-images": "^2.0.6"
+  },
+  "devDependencies": {
+    "canvas": "^2.6.1"
   }
 }
