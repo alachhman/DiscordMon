@@ -17,15 +17,14 @@ module.exports = {
      * @returns {Promise<void>}
      */
     async execute(message, args, client, db) {
-        const userFile = db.collection('users').doc(message.author.id);
-        userFile.get().then(async (docData) => {
+        const userFile = db.collection('users').doc(message.author.id).get().then(async (docData) => {
                 if (docData.exists) {
                     message.channel.send("<@" + message.author + ">" + " is already a trainer");
                 } else {
                     await db.collection('users').doc(message.author.id).set({
                         'userId': message.author.id,
                         'userName': message.author.username,
-                        'latest': "0"
+                        'latest': 0
                     });
                     message.channel.send("Welcome To DiscordMon");
                 }

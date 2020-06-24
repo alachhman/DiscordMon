@@ -18,6 +18,7 @@
     "fs": "0.0.1-security",
     "image-js": "^0.21.9",
     "pokedex-promise-v2": "^3.2.0",
-    "pokesprite-images": "^2.0.6"
+    "pokesprite-images": "^2.0.6",
+    "axios": "latest"
   }
 }

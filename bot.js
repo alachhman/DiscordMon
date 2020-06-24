@@ -53,7 +53,7 @@ client.on('message', async (message) => {
     if (message.author.bot) {
         return;
     }
-    if (Math.random() < 0.15) {
+    if (Math.random() < 0.175) {
         let channel = await db.collection('guilds').doc(message.guild.id).get().then(x => x.data());
         if (!channel.hasSpawn) {
             let designatedChannel = channel.designatedChannel;
@@ -151,6 +151,24 @@ spawnPokemon = async (message, designatedChannel) => {
         const filter = m => (m.content.toUpperCase() === data.forms[0].name.toUpperCase() && !m.author.bot);
         const collector = channelRef.createMessageCollector(filter, {time: 600000});
 
+        const collectorChecker = setInterval(async () => {
+            if (collector.ended) {
+                console.log("Message collector ended.");
+                let tempGData = await db.collection('guilds').doc(message.guild.id).get().then(x => x.data());
+                if (tempGData.hasSpawn) {
+                    console.log("hasSpawn: " + tempGData.hasSpawn);
+                    await updateGuild(guild, "hasSpawn", false);
+                }
+                clearInterval(collectorChecker);
+            } else {
+                console.log("Message collector still going.")
+            }
+        }, 30000);
+
+        let collectorCheckerTimeout = setTimeout(() => {
+            clearInterval(collectorChecker);
+        }, 600000);
+
         /**
          * As soon as the message collector above is created, a timeout function is set which will trigger after 5
          * minutes have passed. When this timeout is triggered, it will send a new discord embed that reminds the
@@ -182,42 +200,33 @@ spawnPokemon = async (message, designatedChannel) => {
          * are in default states so that another pokemon can potentially spawn.
          */
         collector.on('end', async collected => {
-            let user = await db
-                .collection('users')
-                .doc(collected.first().author.id)
-                .get().then(x => {
-                    return {id: x.id, ...x.data()}
-                });
-
             /**
              * Because the end event has been fired, there is no longer a need for the reminder timeout, so it ends.
              */
-            clearInterval(reminder);
+            clearTimeout(reminder);
 
             /**
              * This if statement serves as a way to tell whether or not someone has actually caught the pokemon. If
              * collected.size > 0, then that means the pokemon has been caught, otherwise, the pokemon has not.
              */
             if (collected.size > 0) {
+                let user = await db
+                    .collection('users')
+                    .doc(collected.first().author.id)
+                    .get().then(x => {
+                        return {id: x.id, ...x.data()}
+                    });
 
                 /**
-                 * The following code takes the firestore document of the person who caught the pokemon, and then stores
-                 * the size of their pokemon collection. This is used later to generate the pokemon's id and user's
-                 * latest pokemon firestore variable.
+                 * The following code determines the ID of the caught pokemon, setting it to the last ID plus one.
                  */
-                let size = 0;
-                await db.collection('users')
-                    .doc(collected.first().author.id)
-                    .collection('pokemon')
-                    .get().then(async snap => {
-                        size = snap.size + 1;
-                    });
+                let size = user.latest + 1;
 
                 /**
                  * The pokemon's data is added to the pokemon collection of the user.
                  */
                 await db.collection('users').doc(collected.first().author.id).collection('pokemon').doc(size.toString()).set({
-                    'pokeID': size,
+                    'pokeID': size.toString(),
                     'pokeName': data.forms[0].name,
                     'pokeNickname': data.forms[0].name,
                     'pokeApiEntry': data.forms[0].url,
@@ -243,7 +252,7 @@ spawnPokemon = async (message, designatedChannel) => {
                 channelRef.send({embed});
 
                 /**
-                 * The firestore document of the user who caught the pokemon is updated to increment the latest variable
+                 * The firestore document of the user who caught the pokemon is updated to increment the latest variable 
                  */
                 await db.collection('users').doc(collected.first().author.id).set({
                     'userId': collected.first().author.id,
@@ -254,19 +263,19 @@ spawnPokemon = async (message, designatedChannel) => {
                 /**
                  * Handling level up
                  */
-                if(user.hasOwnProperty("buddy")){
-                    if(user.buddy !== "0"){
+                if (user.hasOwnProperty("buddy")) {
+                    if (user.buddy !== "0") {
                         let buddyData = await db
                             .collection('users')
                             .doc(collected.first().author.id)
                             .collection('pokemon')
                             .doc(user.buddy)
                             .get().then(x => x.data());
-                        if(buddyData.level < 100){
+                        if (buddyData.level < 100) {
                             let num = await randomNum(buddyData.level + (generatedPKMNData.level - buddyData.level));
                             const isLevelUp = (num + buddyData.level) > buddyData.level * 1.5;
                             // console.log("isLevelUp: " + isLevelUp + " : " + (num + buddyData.level) + " vs " + (buddyData.level * 1.5));
-                            if(isLevelUp){
+                            if (isLevelUp) {
                                 await levelUp(collected.first().author, buddyData, channelRef);
                             }
                         }
