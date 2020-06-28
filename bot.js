@@ -238,18 +238,33 @@ spawnPokemon = async (message, designatedChannel) => {
                     'sprite': generatedPKMNData.sprite,
                     'shiny': generatedPKMNData.shiny
                 });
-
                 /**
                  * An embed is sent to the designated channel to notify the users who caught the pokemon.
                  */
+                let catchDollar = parseInt(generatedPKMNData.level * 2);
                 const embed = new Discord.MessageEmbed()
                     .setTitle(collected.first().author.username + ' has caught the ' + data.forms[0].name + '!')
                     .setColor("#38b938")
                     .setThumbnail(collected.first().author.avatarURL())
                     .setImage(generatedPKMNData.sprite);
                 let out = "```" + generateSpaces("LV." + generatedPKMNData.level, 6) + "| IV:" + generateSpaces(generateIVSummary(generatedPKMNData.ivs), 5) + "| " + generatedPKMNData.nature[0] + "```";
-                embed.addField("Info:", out);
+                embed.addField("Info:" + '\n' + "PokeDollars Obtained: " + catchDollar ,out, out);
+              //  embed.addField("PokeDollars Obtained:" + parseInt(generatedPKMNData.level * 2),out)
                 channelRef.send({embed});
+
+                /**
+                 * Handle Coins
+                 */
+
+
+
+                let dollarSnap;
+
+                if('pDollar' in user){
+                    dollarSnap = parseInt(user.pDollar + (catchDollar))
+                }
+                else  dollarSnap = parseInt(catchDollar)
+
 
                 /**
                  * The firestore document of the user who caught the pokemon is updated to increment the latest variable
@@ -258,6 +273,7 @@ spawnPokemon = async (message, designatedChannel) => {
                     'userId': collected.first().author.id,
                     'userName': collected.first().author.username,
                     'latest': size,
+                    'pDollar' : dollarSnap
                 }, {merge: true});
 
                 /**
