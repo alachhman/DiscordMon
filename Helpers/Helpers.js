@@ -1,6 +1,36 @@
 const AsciiTable = require('ascii-table');
 
 module.exports = {
+    /**
+     * Function used to generate stats that are accurate to the actual pokemon games. By taking in a base stats, the iv, the
+     * level, and nature of a pokemon, those values can be passed into a formula that outputs a game-accurate stat.
+     * @param stats                     An array of stats passed from generatePKMN().
+     * @param statToGen                 The specific stat that will be output from this function.
+     * @param ivs                       The iv object of the pokemon to be generated.
+     * @param level                     The level of the pokemon to be generated.
+     * @param nature                    The nature of the pokemon to be generated.
+     * @returns {Promise<number>}       Resolves to a number accurate to the pokemon's stat.
+     */
+    generateStat: async (stats, statToGen, ivs, level, nature) => {
+        let bs = 0;
+
+        let natureFactor = 1;
+        if (nature[1] === statToGen) {
+            natureFactor = 1.1;
+        } else if (nature[2] === statToGen) {
+            natureFactor = 0.9;
+        }
+
+        for (let stat of stats) {
+            if (stat.stat.name !== statToGen) continue;
+            bs = stat.base_stat;
+        }
+        if (statToGen === "hp") {
+            return Math.floor((2 * bs + ivs[statToGen] + 0) * level / 100 + level + 10);
+        } else {
+            return Math.floor(Math.floor((2 * bs + ivs[statToGen] + 0) * level / 100 + 5) * natureFactor)
+        }
+    },
     getEmoji: (string, client) => {
         return "<:" + string + ":" + emojiMapping[string] + ">";
     },
