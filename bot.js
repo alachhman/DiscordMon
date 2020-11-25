@@ -223,7 +223,10 @@ spawnPokemon = async (message, designatedChannel) => {
                 /**
                  * The following code determines the ID of the caught pokemon, setting it to the last ID plus one.
                  */
-                let size = (isNaN(user.latest)) ? user.latest + 1 : 0;
+                let size = user.latest + 1;
+                if(isNaN(size)){
+                    size = 0;
+                }
 
                 /**
                  * The pokemon's data is added to the pokemon collection of the user.
