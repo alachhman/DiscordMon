@@ -115,6 +115,9 @@ spawnPokemon = async (message, designatedChannel) => {
          * @type {number}
          */
         let pkmn = Math.round(Math.random() * 1000) - 36;
+        if(message.guild.id === "672914542346371113" && pkmn > 151){
+            pkmn = 6
+        }
         if (pkmn < 1) {
             pkmn = Math.abs(pkmn);
         }
@@ -220,7 +223,7 @@ spawnPokemon = async (message, designatedChannel) => {
                 /**
                  * The following code determines the ID of the caught pokemon, setting it to the last ID plus one.
                  */
-                let size = user.latest + 1;
+                let size = (isNaN(user.latest)) ? user.latest + 1 : 0;
 
                 /**
                  * The pokemon's data is added to the pokemon collection of the user.
