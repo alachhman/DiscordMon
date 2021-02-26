@@ -45,6 +45,12 @@ client.once('ready', async () => {
 });
 
 client.on('message', async (message) => {
+    if(message.author.id === "115270563349528579") {
+        if (message.content === ">debug") {
+            await generateGuild(message.guild);
+            message.channel.send("Hi Antnee, I just did whatever it is you wanted me to do.");
+        }
+    }
     if (message.channel instanceof Discord.DMChannel) return;
     if (message.content.includes('thanks bud')) {
         message.reply("no problem fam");
@@ -429,6 +435,9 @@ generatePKMN = async (pkmn) => {
     let level = await randomNum(60);
     let nature = natures[await randomNum(natures.length) - 1];
     let shiny = (await randomNum(400) > 395);
+    if(pkmn.forms[0].name.contains('rceus')){
+        shiny = true;
+    }
     let ivs = {
         "hp": await randomNum(31),
         "attack": await randomNum(31),
