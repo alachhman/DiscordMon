@@ -435,7 +435,7 @@ generatePKMN = async (pkmn) => {
     let level = await randomNum(60);
     let nature = natures[await randomNum(natures.length) - 1];
     let shiny = (await randomNum(400) > 395);
-    if(pkmn.forms[0].name.contains('rceus')){
+    if(pkmn.forms[0].name.includes('rceus')){
         shiny = true;
     }
     let ivs = {
