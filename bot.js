@@ -45,6 +45,13 @@ client.once('ready', async () => {
 });
 
 client.on('message', async (message) => {
+    if(message.guild.id === "453732177058988034"){
+        const upvote = message.guild.emojis.cache.find(x => x.id === "827181406052548628");
+        const downvote = message.guild.emojis.cache.find(x => x.id === "827181375631130655");
+        console.log("test")
+        await message.react(upvote);
+        await message.react(downvote);
+    }
     if(message.author.id === "115270563349528579") {
         if (message.content === ">debug") {
             await generateGuild(message.guild);
