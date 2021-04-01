@@ -45,7 +45,7 @@ client.once('ready', async () => {
 });
 
 client.on('message', async (message) => {
-    if(message.guild.id === "453732177058988034"){
+    if(message.guild.id === "453732177058988034" || message.guild.id === "545050989997064222"){
         const upvote = message.guild.emojis.cache.find(x => x.id === "827181406052548628");
         const downvote = message.guild.emojis.cache.find(x => x.id === "827181375631130655");
         console.log("test")
